@@ -50,6 +50,11 @@ def batched_commits(repo, start_cid, end_cid):
 
         commits.append(commit)
 
+        # exit when we reach the earliest targeted
+        # commit.
+        if start_cid and start_cid == commit.id:
+            break
+
     yield commits
     return
 
