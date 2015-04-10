@@ -11,7 +11,7 @@ intervals = {
     'workday': (datetime.time(hour=9),
                 datetime.time(hour=17)),
     'afterhours': (datetime.time(hour=19, minute=30),
-                   datetime.time(hour=23, minute=59)),
+                   datetime.time(hour=01, minute=00)),
 }
 
 
@@ -35,6 +35,10 @@ def parse_args():
 
 
 def batched_commits(repo, start_cid, end_cid):
+    '''Return commits batched by day. Note that this generates commits
+    starting with end_cid (the latest commit) and working backwards to
+    start_cid (the earliest commit).'''
+
     current_day = None
     commits = []
     for commit in repo.walk(end_cid, pygit2.GIT_SORT_TOPOLOGICAL):
@@ -68,7 +72,7 @@ def main():
         i_start = datetime.datetime.strptime(args.interval[0],
                                              '%H:%M').time()
         i_end = datetime.datetime.strptime(args.interval[1],
-                                             '%H:%M').time()
+                                           '%H:%M').time()
         interval = (i_start, i_end)
 
     repo = pygit2.Repository(args.repo)
@@ -92,8 +96,16 @@ def main():
             first_commit.date(),
             interval[1])
 
+        if interval[1] < interval[0]:
+            time_end += datetime.timedelta(days=1)
+
         delta = time_end-time_start
 
+        # Generate a list of random offsets (in seconds) that cover the
+        # given interval.  We sort these first (which will make sure that
+        # our modified commits are still ordered correctly w/r/t time) and
+        # reverse the list, since we are getting commits from
+        # batched_commits in latest-to-earliest order.
         offsets = sorted([random.uniform(0, delta.total_seconds())
                           for x in range(len(batch))],
                          reverse=True)
