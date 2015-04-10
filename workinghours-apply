@@ -1,15 +1,22 @@
 #!/bin/sh
+#
+# This script takes a plan produced by the "workinghours" script and
+# applies it to a git repository.
+#
+# Usage: workinghours-apply [repository [plan]]
+#
+# Defaults to using the current directory if you do not provide an
+# explicit repository path.
 
 repo=$(readlink -f ${1:-.})
 tmpfile=$(mktemp -t planXXXXXX)
-
 trap "rm -f $tmpfile" EXIT
 
+# Read plan from either $2 or from stdin.
 cat $2 > $tmpfile
 
 cd "$repo" || exit 1
-export WH_PLAN=$tmpfile
-git filter-branch -f --tree-filter '
+WH_PLAN=$tmpfile git filter-branch -f --tree-filter '
 when=$(awk -vcid=$GIT_COMMIT "\$1 == cid {print \$2}" $WH_PLAN)
 [ "$when" ] && export GIT_AUTHOR_DATE="$when" GIT_COMMITTER_DATE="$when"
 ' HEAD
