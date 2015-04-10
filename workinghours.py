@@ -31,7 +31,7 @@ def parse_args():
                    default='.')
     p.add_argument('--drift', '-d',
                    nargs=3,
-                   default=(0.5,2,2))
+                   default=(0.5, 2, 2))
     p.add_argument('revspec', nargs='?', default='HEAD')
     p.set_defaults(interval='workday')
     return p.parse_args()
