@@ -1,6 +1,6 @@
 #!/bin/sh
 
-repo=$(readlink -f $1)
+repo=$(readlink -f ${1:-.})
 tmpfile=$(mktemp -t planXXXXXX)
 
 trap "rm -f $tmpfile" EXIT

@@ -29,7 +29,7 @@ def parse_args():
                    nargs=2)
     p.add_argument('--repo', '-r',
                    default='.')
-    p.add_argument('revspec')
+    p.add_argument('revspec', nargs='?', default='HEAD')
     p.set_defaults(interval='workday')
     return p.parse_args()
 
