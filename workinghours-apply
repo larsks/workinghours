@@ -8,7 +8,7 @@
 # Defaults to using the current directory if you do not provide an
 # explicit repository path.
 
-repo=$(readlink -f ${1:-.})
+repo=$(readlink -f "${1:-.}")
 tmpfile=$(mktemp -t planXXXXXX)
 trap "rm -f $tmpfile" EXIT
 
