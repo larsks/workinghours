@@ -1,9 +1,10 @@
 import datetime
 
+import numpy as np
 import pygit2
 import pytest
 
-from workinghours.plan import batched_commits, resolve_revspec
+from workinghours.plan import batched_commits, generate_plan, resolve_revspec
 
 
 @pytest.fixture
@@ -62,3 +63,71 @@ def test_resolve_revspec_range(test_repo):
     start_oid, end_oid = resolve_revspec(test_repo, "HEAD~1..HEAD")
     assert start_oid == test_repo.revparse_single("HEAD~1").id
     assert end_oid == test_repo.revparse_single("HEAD").id
+
+
+def test_generate_plan_covers_all_commits(test_repo):
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=test_repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng,
+    )
+    all_ids = {
+        str(c.id)
+        for c in test_repo.walk(
+            test_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+        )
+    }
+    assert set(plan.keys()) == all_ids
+
+
+def test_generate_plan_strict_times_within_window(test_repo):
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=test_repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng,
+    )
+    for dt in plan.values():
+        minutes = dt.hour * 60 + dt.minute
+        assert 540 <= minutes < 1020, f"Time {dt.time()} outside window"
+
+
+def test_generate_plan_preserves_date(test_repo):
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=test_repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng,
+    )
+    original_dates = {
+        str(c.id): datetime.datetime.fromtimestamp(c.commit_time).date()
+        for c in test_repo.walk(
+            test_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+        )
+    }
+    for cid, new_dt in plan.items():
+        assert new_dt.date() == original_dates[cid]
+
+
+def test_generate_plan_partial_revspec(test_repo):
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=test_repo,
+        revspec="HEAD~1..HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng,
+    )
+    # Only the tip commit (HEAD) is in the range
+    assert len(plan) == 1

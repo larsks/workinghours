@@ -1,9 +1,9 @@
 import datetime
 
-import numpy as np  # noqa: F401
+import numpy as np
 import pygit2
 
-from workinghours.pdf import build_pdf, sample_times  # noqa: F401
+from workinghours.pdf import build_pdf, sample_times
 
 
 def resolve_revspec(
@@ -25,6 +25,9 @@ def batched_commits(
     current_day: datetime.date | None = None
 
     for commit in repo.walk(end_oid, pygit2.GIT_SORT_TOPOLOGICAL):
+        if start_oid is not None and commit.id == start_oid:
+            break
+
         day = datetime.datetime.fromtimestamp(commit.commit_time).date()
 
         if current_day is None:
@@ -38,10 +41,36 @@ def batched_commits(
 
         current_batch.append(commit)
 
-        if start_oid is not None and commit.id == start_oid:
-            break
-
     if current_batch:
         batches.append(current_batch)
 
     return batches
+
+
+def generate_plan(
+    repo: pygit2.Repository,
+    revspec: str,
+    windows: list[tuple[int, int]],
+    softness: float,
+    strict: bool,
+    rng: np.random.Generator | None = None,
+) -> dict[str, datetime.datetime]:
+    if rng is None:
+        rng = np.random.default_rng()
+
+    start_oid, end_oid = resolve_revspec(repo, revspec)
+    batches = batched_commits(repo, start_oid, end_oid)
+    pdf = build_pdf(windows, softness=softness, strict=strict)
+
+    plan: dict[str, datetime.datetime] = {}
+    for batch in batches:
+        date = datetime.datetime.fromtimestamp(batch[0].commit_time).date()
+        times_minutes = sample_times(pdf, len(batch), rng)
+        times_minutes.sort(reverse=True)
+        for commit, minutes in zip(batch, times_minutes):
+            new_dt = datetime.datetime.combine(
+                date, datetime.time()
+            ) + datetime.timedelta(minutes=minutes)
+            plan[str(commit.id)] = new_dt
+
+    return plan
