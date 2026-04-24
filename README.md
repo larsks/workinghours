@@ -1,30 +1,76 @@
 ## Workinghours
 
-Workinghours uses the `git filter-branch` command to make all of your
-commits appear to happen within specific time intervals.
+Workinghours rewrites the timestamps of commits in a git repository so they appear to have been made within specific time intervals.
 
-Maybe you made some commits at the last minute and you would like
-people to think you had a more considered approach?  This will
-distribute your commits between 9:00 and 17:00 for each day there are
-commits:
+### Installation
 
-    workinghours | workinghours-apply
+```bash
+uv tool install .
+```
 
-Did you spend too much time working on personal projects during the
-day and you would like to remove that evidence from your git history?
-This will move all your commits to between the hours of 20:00 and
-23:59:
+Or run directly without installing:
 
-    workinghours --afterhours | workinghours-apply
+```bash
+uv run workinghours
+```
 
-You can also provide custom intervals:
+### Usage
 
-    workinghours --interval 12:00 17:00 | workinghours-apply
+Move all commits into working hours (9:00–17:00):
 
-And you can operate on only subsets of your history:
+```bash
+workinghours
+```
 
-    workinghours --afterhours 'master@{2015-02-28 00:00}..HEAD' 
+Move all commits outside working hours:
 
-Or:
+```bash
+workinghours --interval '!workhours'
+```
 
-    workinghours --afterhours HEAD~10..HEAD
+Use a custom time interval:
+
+```bash
+workinghours --interval '12:00-16:00'
+```
+
+Use a custom interval, negated (commits fall outside noon–4pm):
+
+```bash
+workinghours --interval '!12:00-16:00'
+```
+
+Operate on a subset of history:
+
+```bash
+workinghours HEAD~10..HEAD
+```
+
+Preview the plan without rewriting:
+
+```bash
+workinghours --plan
+```
+
+Use hard boundaries (no drift outside the target window):
+
+```bash
+workinghours --strict
+```
+
+Control how far commits can drift outside the window (in hours, default 1.0):
+
+```bash
+workinghours --softness 0.5
+```
+
+### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--interval INTERVAL` | `workhours` | Target interval (named or `HH:MM-HH:MM`, prefix `!` to negate) |
+| `--repo PATH` | `.` | Path to git repository |
+| `--plan` | off | Print plan to stdout without rewriting |
+| `--strict` | off | Hard boundaries, no drift |
+| `--softness HOURS` | `1.0` | Soft-boundary exponential decay rate |
+| `revspec` | `HEAD` | Commit range to rewrite |
