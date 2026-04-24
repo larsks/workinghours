@@ -12,6 +12,36 @@ class Interval:
     end: datetime.time
     negated: bool
 
+    @property
+    def target_windows(self) -> list[tuple[int, int]]:
+        s = self.start.hour * 60 + self.start.minute
+        e = self.end.hour * 60 + self.end.minute
+        if e <= s:
+            # Midnight-spanning: e.g. 20:00-02:00 → [(1200,1440),(0,120)]
+            base: list[tuple[int, int]] = [(s, 1440), (0, e)]
+        else:
+            base = [(s, e)]
+        return base if not self.negated else _complement(base)
+
+
+def _complement(windows: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    covered = bytearray(1440)
+    for s, e in windows:
+        covered[s:e] = b"\x01" * (e - s)
+    result: list[tuple[int, int]] = []
+    start = None
+    for i in range(1440):
+        if covered[i] == 0:
+            if start is None:
+                start = i
+        else:
+            if start is not None:
+                result.append((start, i))
+                start = None
+    if start is not None:
+        result.append((start, 1440))
+    return result
+
 
 def parse_interval(s: str) -> Interval:
     negated = s.startswith("!")
