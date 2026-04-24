@@ -4,7 +4,7 @@ import sys
 import pygit2
 
 from workinghours.apply import apply_plan
-from workinghours.interval import Interval, parse_interval
+from workinghours.interval import combine_intervals, parse_interval
 from workinghours.plan import generate_plan
 
 
@@ -15,12 +15,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--interval",
-        default=None,
+        action="append",
+        dest="intervals",
         metavar="INTERVAL",
         help=(
-            "Target interval. Named: workhours (default), !workhours. "
+            "Target interval (may be repeated). Named: workhours, sleepytime. "
+            "Prefix ! to exclude: !workhours, !sleepytime. "
             "Custom: HH:MM-HH:MM or !HH:MM-HH:MM. "
-            "Prefix ! means commits fall OUTSIDE the interval."
+            "Multiple --interval values are combined: inclusive intervals are "
+            "unioned; exclusive intervals exclude all named ranges. "
+            "Mixing inclusive and exclusive is an error. Default: workhours."
         ),
     )
     parser.add_argument(
@@ -66,11 +70,8 @@ def main() -> None:
         parser.error("--softness must be non-negative")
 
     try:
-        interval: Interval = (
-            parse_interval(args.interval)
-            if args.interval
-            else parse_interval("workhours")
-        )
+        intervals = [parse_interval(s) for s in (args.intervals or ["workhours"])]
+        windows = combine_intervals(intervals)
     except ValueError as e:
         parser.error(str(e))
 
@@ -83,7 +84,7 @@ def main() -> None:
         plan = generate_plan(
             repo=repo,
             revspec=args.revspec,
-            windows=interval.target_windows,
+            windows=windows,
             softness=args.softness,
             strict=args.strict,
         )
