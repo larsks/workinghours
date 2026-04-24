@@ -4,6 +4,7 @@ import numpy as np
 import pygit2
 import pytest
 
+from workinghours.apply import apply_plan
 from workinghours.plan import batched_commits, generate_plan, resolve_revspec
 
 
@@ -110,7 +111,7 @@ def test_generate_plan_preserves_date(test_repo):
         rng=rng,
     )
     original_dates = {
-        str(c.id): datetime.datetime.fromtimestamp(c.commit_time).date()
+        str(c.id): datetime.datetime.fromtimestamp(c.author.time).date()
         for c in test_repo.walk(
             test_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
         )
@@ -131,3 +132,73 @@ def test_generate_plan_partial_revspec(test_repo):
     )
     # Only the tip commit (HEAD) is in the range
     assert len(plan) == 1
+
+
+def test_generate_plan_uses_author_date_not_committer_date(tmp_path):
+    # Regression: when committer dates are all "today" but author dates span
+    # multiple days, batching must use author.time or all commits collapse to
+    # the same day.
+    repo = pygit2.init_repository(str(tmp_path))
+    repo.config["user.name"] = "Test"
+    repo.config["user.email"] = "test@example.com"
+    tree_oid = repo.TreeBuilder().write()
+
+    committer_ts = int(datetime.datetime(2024, 3, 20, 12, 0).timestamp())
+    author_timestamps = [
+        int(datetime.datetime(2024, 1, 10, 10, 0).timestamp()),
+        int(datetime.datetime(2024, 2, 5, 14, 0).timestamp()),
+        int(datetime.datetime(2024, 3, 20, 9, 0).timestamp()),
+    ]
+
+    parent: list[pygit2.Oid] = []
+    for i, author_ts in enumerate(author_timestamps):
+        author = pygit2.Signature("Test", "test@example.com", time=author_ts, offset=0)
+        committer = pygit2.Signature(
+            "Test", "test@example.com", time=committer_ts, offset=0
+        )
+        oid = repo.create_commit(
+            "refs/heads/master", author, committer, f"commit {i}", tree_oid, parent
+        )
+        parent = [oid]
+    repo.references.create("HEAD", "refs/heads/master", force=True)
+
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng,
+    )
+
+    expected_dates = [
+        datetime.date(2024, 1, 10),
+        datetime.date(2024, 2, 5),
+        datetime.date(2024, 3, 20),
+    ]
+    plan_dates = sorted({dt.date() for dt in plan.values()})
+    assert plan_dates == sorted(expected_dates), (
+        f"Expected dates {sorted(expected_dates)}, got {plan_dates}. "
+        "Plan is using committer date instead of author date."
+    )
+
+
+def test_apply_plan_rewrites_timestamps(test_repo):
+    target_dt = datetime.datetime(2024, 1, 15, 10, 30)
+    plan = {
+        str(c.id): target_dt
+        for c in test_repo.walk(
+            test_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+        )
+    }
+
+    repo_path = test_repo.workdir.rstrip("/")
+    apply_plan(repo_path, plan)
+
+    new_repo = pygit2.Repository(repo_path)
+    expected_ts = int(target_dt.timestamp())
+    for commit in new_repo.walk(
+        new_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+    ):
+        assert commit.commit_time == expected_ts

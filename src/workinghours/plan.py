@@ -28,7 +28,7 @@ def batched_commits(
         if start_oid is not None and commit.id == start_oid:
             break
 
-        day = datetime.datetime.fromtimestamp(commit.commit_time).date()
+        day = datetime.datetime.fromtimestamp(commit.author.time).date()
 
         if current_day is None:
             current_day = day
@@ -64,7 +64,7 @@ def generate_plan(
 
     plan: dict[str, datetime.datetime] = {}
     for batch in batches:
-        date = datetime.datetime.fromtimestamp(batch[0].commit_time).date()
+        date = datetime.datetime.fromtimestamp(batch[0].author.time).date()
         times_minutes = sample_times(pdf, len(batch), rng)
         times_minutes.sort(reverse=True)
         for commit, minutes in zip(batch, times_minutes):
