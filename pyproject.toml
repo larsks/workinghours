@@ -3,16 +3,11 @@ name = "workinghours"
 version = "0.1.0"
 description = "Rewrite git commit timestamps to fall within specified time intervals"
 requires-python = ">=3.11"
-dependencies = [
-    "pygit2",
-    "git-filter-repo",
-    "numpy",
-    "matplotlib",
-]
+dependencies = ["pygit2", "git-filter-repo", "numpy", "matplotlib"]
 
 [project.scripts]
-workinghours = "workinghours.cli:main"
-workinghours-heatmap = "workinghours.heatmap:main"
+git-workinghours = "workinghours.cli:main"
+git-heatmap = "workinghours.heatmap:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -22,10 +17,7 @@ build-backend = "hatchling.build"
 packages = ["src/workinghours"]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "ruff",
-]
+dev = ["pytest", "ruff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
