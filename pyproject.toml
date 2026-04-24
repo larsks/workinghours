@@ -7,10 +7,12 @@ dependencies = [
     "pygit2",
     "git-filter-repo",
     "numpy",
+    "matplotlib",
 ]
 
 [project.scripts]
 workinghours = "workinghours.cli:main"
+workinghours-heatmap = "workinghours.heatmap:main"
 
 [build-system]
 requires = ["hatchling"]
