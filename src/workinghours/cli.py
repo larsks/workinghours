@@ -1,3 +1,4 @@
+# pyright: reportUnusedCallResult=false
 import argparse
 import sys
 
@@ -15,6 +16,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--interval",
+        "-i",
         action="append",
         dest="intervals",
         metavar="INTERVAL",
@@ -29,6 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--repo",
+        "-r",
         default=".",
         metavar="PATH",
         help="Path to git repository (default: current directory).",
@@ -45,6 +48,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--softness",
+        "-s",
         type=float,
         default=1.0,
         metavar="HOURS",
