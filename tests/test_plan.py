@@ -184,6 +184,61 @@ def test_generate_plan_uses_author_date_not_committer_date(tmp_path):
     )
 
 
+def test_generate_plan_allowed_days_filters_batches(tmp_path):
+    # Create commits on known days:
+    # 2024-01-15 = Monday (cron day 1)
+    # 2024-01-16 = Tuesday (cron day 2)
+    # 2024-01-17 = Wednesday (cron day 3)
+    repo = pygit2.init_repository(str(tmp_path))
+    repo.config["user.name"] = "Test"
+    repo.config["user.email"] = "test@example.com"
+    tree_oid = repo.TreeBuilder().write()
+
+    timestamps = [
+        int(datetime.datetime(2024, 1, 15, 10, 0).timestamp()),
+        int(datetime.datetime(2024, 1, 16, 10, 0).timestamp()),
+        int(datetime.datetime(2024, 1, 17, 10, 0).timestamp()),
+    ]
+
+    parent: list[pygit2.Oid] = []
+    for i, ts in enumerate(timestamps):
+        sig = pygit2.Signature("Test", "test@example.com", time=ts, offset=0)
+        oid = repo.create_commit(
+            "refs/heads/master", sig, sig, f"commit {i}", tree_oid, parent
+        )
+        parent = [oid]
+    repo.references.create("HEAD", "refs/heads/master", force=True)
+
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        allowed_days={1},  # Monday only
+        rng=rng,
+    )
+
+    plan_dates = {dt.date() for dt in plan.values()}
+    assert plan_dates == {datetime.date(2024, 1, 15)}
+    assert len(plan) == 1
+
+
+def test_generate_plan_allowed_days_none_includes_all(test_repo):
+    rng = np.random.default_rng(42)
+    plan = generate_plan(
+        repo=test_repo,
+        revspec="HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        allowed_days=None,
+        rng=rng,
+    )
+    assert len(plan) == 3
+
+
 def test_apply_plan_rewrites_timestamps(test_repo):
     target_dt = datetime.datetime(2024, 1, 15, 10, 30)
     plan = {

@@ -47,12 +47,17 @@ def batched_commits(
     return batches
 
 
+def _python_weekday_to_cron(weekday: int) -> int:
+    return (weekday + 1) % 7
+
+
 def generate_plan(
     repo: pygit2.Repository,
     revspec: str,
     windows: list[tuple[int, int]],
     softness: float,
     strict: bool,
+    allowed_days: set[int] | None = None,
     rng: np.random.Generator | None = None,
 ) -> dict[str, datetime.datetime]:
     if rng is None:
@@ -65,6 +70,12 @@ def generate_plan(
     plan: dict[str, datetime.datetime] = {}
     for batch in batches:
         date = datetime.datetime.fromtimestamp(batch[0].author.time).date()
+
+        if allowed_days is not None:
+            cron_day = _python_weekday_to_cron(date.weekday())
+            if cron_day not in allowed_days:
+                continue
+
         times_minutes = sample_times(pdf, len(batch), rng)
         times_minutes.sort(reverse=True)
         for commit, minutes in zip(batch, times_minutes):

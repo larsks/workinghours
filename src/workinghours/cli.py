@@ -5,6 +5,7 @@ import sys
 import pygit2
 
 from workinghours.apply import apply_plan
+from workinghours.days import combine_day_filters, parse_days
 from workinghours.interval import combine_intervals, parse_interval
 from workinghours.plan import generate_plan
 
@@ -27,6 +28,23 @@ def _build_parser() -> argparse.ArgumentParser:
             "Multiple --interval values are combined: inclusive intervals are "
             "unioned; exclusive intervals exclude all named ranges. "
             "Mixing inclusive and exclusive is an error. Default: workhours."
+        ),
+    )
+    parser.add_argument(
+        "--days",
+        "-d",
+        action="append",
+        dest="days",
+        metavar="DAYS",
+        help=(
+            "Only operate on commits falling on the given days of the week. "
+            "Cron-style: 0-7 where 0=Sunday, 7=Sunday. "
+            "Supports ranges (1-5), names (weekdays, weekend), "
+            "and combinations (weekend,3,4). "
+            "Prefix ! to negate: !weekend, !1-3. "
+            "Multiple --days values are combined: inclusive values are "
+            "unioned; exclusive values exclude all named days. "
+            "Mixing inclusive and exclusive is an error."
         ),
     )
     parser.add_argument(
@@ -80,6 +98,15 @@ def main() -> None:
         parser.error(str(e))
 
     try:
+        if args.days:
+            day_filters = [parse_days(s) for s in args.days]
+            allowed_days: set[int] | None = combine_day_filters(day_filters)
+        else:
+            allowed_days = None
+    except ValueError as e:
+        parser.error(str(e))
+
+    try:
         repo = pygit2.Repository(args.repo)
     except pygit2.GitError as e:
         sys.exit(f"error: cannot open repository at {args.repo!r}: {e}")
@@ -91,6 +118,7 @@ def main() -> None:
             windows=windows,
             softness=args.softness,
             strict=args.strict,
+            allowed_days=allowed_days,
         )
     except pygit2.GitError as e:
         sys.exit(f"error: cannot resolve revspec {args.revspec!r}: {e}")
