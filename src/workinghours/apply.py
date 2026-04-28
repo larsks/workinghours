@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 import tempfile
 
 import git_filter_repo
@@ -7,6 +8,13 @@ import git_filter_repo
 
 def apply_plan(repo_path: str, plan: dict[str, datetime.datetime]) -> None:
     repo_path = os.path.realpath(repo_path)
+
+    # Remove stale filter-repo state so that commit.original_id in the
+    # callback matches the current commit IDs used to build the plan.
+    filter_repo_dir = os.path.join(repo_path, ".git", "filter-repo")
+    if os.path.isdir(filter_repo_dir):
+        shutil.rmtree(filter_repo_dir)
+
     old_cwd = os.getcwd()
     old_env = {}
     env_overrides = {

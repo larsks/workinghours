@@ -257,3 +257,33 @@ def test_apply_plan_rewrites_timestamps(test_repo):
         new_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
     ):
         assert commit.commit_time == expected_ts
+
+
+def test_apply_plan_works_after_previous_run(test_repo):
+    repo_path = test_repo.workdir.rstrip("/")
+
+    first_dt = datetime.datetime(2024, 1, 15, 10, 30)
+    plan1 = {
+        str(c.id): first_dt
+        for c in test_repo.walk(
+            test_repo.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+        )
+    }
+    apply_plan(repo_path, plan1)
+
+    second_dt = datetime.datetime(2024, 1, 15, 14, 0)
+    repo2 = pygit2.Repository(repo_path)
+    plan2 = {
+        str(c.id): second_dt
+        for c in repo2.walk(
+            repo2.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+        )
+    }
+    apply_plan(repo_path, plan2)
+
+    repo3 = pygit2.Repository(repo_path)
+    expected_ts = int(second_dt.timestamp())
+    for commit in repo3.walk(
+        repo3.revparse_single("HEAD").id, pygit2.GIT_SORT_TOPOLOGICAL
+    ):
+        assert commit.commit_time == expected_ts
