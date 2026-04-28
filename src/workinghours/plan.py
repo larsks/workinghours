@@ -12,7 +12,11 @@ def resolve_revspec(
     if ".." in revspec:
         start_str, end_str = revspec.split("..", 1)
         return repo.revparse_single(start_str).id, repo.revparse_single(end_str).id
-    return None, repo.revparse_single(revspec).id
+    end_oid = repo.revparse_single(revspec).id
+    head_oid = repo.revparse_single("HEAD").id
+    if end_oid == head_oid:
+        return None, head_oid
+    return end_oid, head_oid
 
 
 def batched_commits(

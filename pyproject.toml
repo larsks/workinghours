@@ -1,6 +1,6 @@
 [project]
 name = "workinghours"
-version = "0.1.3"
+version = "0.1.4"
 description = "Rewrite git commit timestamps to fall within specified time intervals"
 requires-python = ">=3.11"
 dependencies = ["pygit2", "git-filter-repo", "numpy", "matplotlib"]

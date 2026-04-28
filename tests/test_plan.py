@@ -66,6 +66,12 @@ def test_resolve_revspec_range(test_repo):
     assert end_oid == test_repo.revparse_single("HEAD").id
 
 
+def test_resolve_revspec_bare_ancestor(test_repo):
+    start_oid, end_oid = resolve_revspec(test_repo, "HEAD~1")
+    assert start_oid == test_repo.revparse_single("HEAD~1").id
+    assert end_oid == test_repo.revparse_single("HEAD").id
+
+
 def test_generate_plan_covers_all_commits(test_repo):
     rng = np.random.default_rng(42)
     plan = generate_plan(
@@ -132,6 +138,28 @@ def test_generate_plan_partial_revspec(test_repo):
     )
     # Only the tip commit (HEAD) is in the range
     assert len(plan) == 1
+
+
+def test_generate_plan_bare_ancestor_same_as_range(test_repo):
+    rng1 = np.random.default_rng(42)
+    plan_bare = generate_plan(
+        repo=test_repo,
+        revspec="HEAD~1",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng1,
+    )
+    rng2 = np.random.default_rng(42)
+    plan_range = generate_plan(
+        repo=test_repo,
+        revspec="HEAD~1..HEAD",
+        windows=[(540, 1020)],
+        softness=0.0,
+        strict=True,
+        rng=rng2,
+    )
+    assert plan_bare == plan_range
 
 
 def test_generate_plan_uses_author_date_not_committer_date(tmp_path):
